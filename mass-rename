@@ -1,0 +1,99 @@
+#!/bin/sh
+
+name_p=''
+name_r='${f%%.*}'
+name_s=''
+dir="$PWD"
+verbose=false
+
+usage() {
+	cat << END
+$(basename $0) [OPTIONS] MATCH DIR
+Rename all files containing the subtring MATCH in the directory DIR while
+preserving the file extension.
+
+OPTIONS:
+	-h		print this help message
+	-p PREFIX	add PREFIX before the current filename
+	-r REPLACE	replace the filename with REPLACE
+	-s SUFFIX	append SUFFIX to the end of the current filename
+	-v		outputs the old name and new name of the file during rename
+
+If none of PREFIX, REPLACE, or SUFFIX are set then nothing will happen.
+
+MATCH is any non-empty regular expression recognized by your shell. To pass a
+regex, you must surrond it in single quotes ('') in order for it to not 
+evaluate before giving it to the script. To match all files use '*' (with 
+quotes).
+
+If DIR is not specified, it is assumed to be the current working directory.
+END
+	exit 0
+}
+
+blank_match(){
+	cat << END
+Preventing use due to blank regex which will rename all. To rename all use '*'
+(with quotes) as the regex instead.
+Use the '-h' flag for more info
+END
+	exit 1
+}
+
+no_opts(){
+	cat << END
+At least one of PREFIX, REPLACE, or SUFFIX must be set for something to happen.
+Use the '-h' flag for more info.
+END
+	exit 0
+}
+
+# flags
+zeroopt=true
+while getopts 'hp:r:s:v' opt; do
+	case $opt in
+		h) usage ;;
+		p) name_p=$OPTARG && zeroopt=false ;;
+		r) name_r=$OPTARG && zeroopt=false ;;
+		s) name_s=$OPTARG && zeroopt=false ;;
+		v) verbose=true ;;
+		?) echo && echo "USAGE:" && usage ;;
+	esac
+done
+$zeroopt && no_opts
+
+# shift for args
+shift $(($OPTIND-1))
+
+# check the args are valid
+[ -z "$1" ] && blank_match
+
+if [ ! -z "$2" ]; then
+	if [ -d "$2" ]; then
+		dir="$2" 
+		name_p="$name_p"
+	else
+		echo "$2 is not a valid directory. Exiting."
+		exit 1
+	fi
+fi
+
+# loop through files and do the rename
+$verbose && [ "$dir" != "$PWD" ] && echo "Moving to $dir"
+cd "$dir"
+for f in *; do
+	case $f in
+		$1)
+			if [ "${f#*.}" = "$f" ]; then
+				eval mv $f "$name_p$name_r$name_s"
+			else
+				eval mv $f "$name_p$name_r$name_s.${f#*.}"
+			fi
+			if $verbose; then
+				[ "${f#*.}" = "$f" ] && 
+					eval echo "Renaming $f to $name_p$name_r$name_s" ||
+					eval echo "Renaming $f to $name_p$name_r$name_s.${f#*.}"
+			fi
+			;;
+	esac
+done
