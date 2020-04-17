@@ -1,4 +1,5 @@
 #!/bin/sh
+#Brayden Freitas April 2020
 
 name_p=''
 name_r='${f%%.*}'
